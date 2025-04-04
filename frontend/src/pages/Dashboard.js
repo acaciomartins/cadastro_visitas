@@ -11,16 +11,19 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TablePagination
+  TablePagination,
+  Alert
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import useRequest from '../hooks/useRequest';
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [visitas, setVisitas] = useState([]);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
+  const { execute, error } = useRequest();
 
   useEffect(() => {
     loadVisitas();
@@ -28,10 +31,10 @@ const Dashboard = () => {
 
   const loadVisitas = async () => {
     try {
-      const response = await api.get('/visitas');
+      const response = await execute(() => api.get('/visitas'));
       setVisitas(response.data);
-    } catch (error) {
-      console.error('Erro ao carregar visitas:', error);
+    } catch (err) {
+      console.error('Erro ao carregar visitas:', err);
     }
   };
 
@@ -99,6 +102,11 @@ const Dashboard = () => {
                 Ver Todas
               </Button>
             </Box>
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
             <TableContainer>
               <Table>
                 <TableHead>

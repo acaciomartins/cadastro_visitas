@@ -1,12 +1,18 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useLoading } from '../contexts/LoadingContext';
 
 const PrivateRoute = ({ children }) => {
-  const { signed, loading } = useAuth();
+  const { signed, loading: authLoading } = useAuth();
+  const { setLoading } = useLoading();
 
-  if (loading) {
-    return <div>Carregando...</div>;
+  React.useEffect(() => {
+    setLoading(authLoading);
+  }, [authLoading, setLoading]);
+
+  if (authLoading) {
+    return null;
   }
 
   if (!signed) {

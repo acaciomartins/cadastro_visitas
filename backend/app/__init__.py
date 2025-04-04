@@ -91,7 +91,7 @@ def init_db(app):
             print("Banco de dados inicializado com sucesso!")
             
         except Exception as e:
-            print(f"Erro ao inicializar banco de dados: {str(e)}")
+            print("Erro ao inicializar banco de dados: " + str(e))
             db.session.rollback()
 
 def create_app():
@@ -122,7 +122,7 @@ def create_app():
     # Configurar CORS - Permitir todas as origens durante o desenvolvimento
     CORS(app, resources={
         r"/api/*": {
-            "origins": ["http://localhost:3000"],
+            "origins": ["http://localhost:3000", "http://localhost:3001", "http://localhost:3003"],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
             "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"],
             "expose_headers": ["Content-Type", "Authorization"],

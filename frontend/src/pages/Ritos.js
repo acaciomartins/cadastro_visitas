@@ -16,30 +16,60 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField
+  TextField,
+  Snackbar,
+  Alert,
+  DialogContentText,
+  TablePagination,
+  Grid
 } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import api from '../services/api';
+import useRequest from '../hooks/useRequest';
 
 const Ritos = () => {
   const [ritos, setRitos] = useState([]);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingRito, setEditingRito] = useState(null);
   const [formData, setFormData] = useState({
     nome: '',
     descricao: ''
   });
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [ritoToDelete, setRitoToDelete] = useState(null);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredRitos, setFilteredRitos] = useState([]);
+  const [filters, setFilters] = useState({
+    nome: ''
+  });
+  const { execute, error } = useRequest();
 
   useEffect(() => {
     loadRitos();
   }, []);
 
+  useEffect(() => {
+    const filtered = ritos.filter(rito => {
+      const matchNome = !filters.nome || rito.nome.toLowerCase().includes(filters.nome.toLowerCase());
+      return matchNome;
+    });
+    setFilteredRitos(filtered);
+    setPage(0);
+  }, [filters, ritos]);
+
   const loadRitos = async () => {
     try {
-      const response = await api.get('/ritos');
+      const response = await execute(() => api.get('/ritos'));
       setRitos(response.data);
-    } catch (error) {
-      console.error('Erro ao carregar ritos:', error);
+    } catch (err) {
+      console.error('Erro ao carregar ritos:', err);
     }
   };
 
@@ -69,29 +99,81 @@ const Ritos = () => {
     });
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     try {
       if (editingRito) {
-        await api.put(`/ritos/${editingRito.id}`, formData);
+        await execute(() => api.put(`/ritos/${editingRito.id}`, formData));
+        setSnackbar({
+          open: true,
+          message: 'Rito atualizado com sucesso!',
+          severity: 'success'
+        });
       } else {
-        await api.post('/ritos', formData);
+        await execute(() => api.post('/ritos', formData));
+        setSnackbar({
+          open: true,
+          message: 'Rito registrado com sucesso!',
+          severity: 'success'
+        });
       }
       handleCloseDialog();
       loadRitos();
-    } catch (error) {
-      console.error('Erro ao salvar rito:', error);
+    } catch (err) {
+      console.error('Erro ao salvar rito:', err);
+      setSnackbar({
+        open: true,
+        message: 'Erro ao salvar rito. Por favor, tente novamente.',
+        severity: 'error'
+      });
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Tem certeza que deseja excluir este rito?')) {
-      try {
-        await api.delete(`/ritos/${id}`);
-        loadRitos();
-      } catch (error) {
-        console.error('Erro ao excluir rito:', error);
-      }
+  const handleDelete = (id) => {
+    setRitoToDelete(id);
+    setOpenDeleteDialog(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    try {
+      await execute(() => api.delete(`/ritos/${ritoToDelete}`));
+      setSnackbar({
+        open: true,
+        message: 'Rito excluído com sucesso!',
+        severity: 'success'
+      });
+      loadRitos();
+    } catch (err) {
+      console.error('Erro ao excluir rito:', err);
+      setSnackbar({
+        open: true,
+        message: 'Erro ao excluir rito. Por favor, tente novamente.',
+        severity: 'error'
+      });
     }
+    setOpenDeleteDialog(false);
+  };
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const handleFilterChange = (field, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      nome: ''
+    });
   };
 
   return (
@@ -107,32 +189,72 @@ const Ritos = () => {
         </Button>
       </Box>
 
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <Grid container spacing={2}>
+          <Grid item xs={12} sm={6} md={3}>
+            <TextField
+              fullWidth
+              label="Nome"
+              value={filters.nome || ''}
+              onChange={(e) => handleFilterChange('nome', e.target.value)}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <Button
+              fullWidth
+              variant="outlined"
+              onClick={clearFilters}
+              sx={{ height: '56px' }}
+            >
+              Limpar Filtros
+            </Button>
+          </Grid>
+        </Grid>
+      </Paper>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
             <TableRow>
               <TableCell>Nome</TableCell>
-              <TableCell>Descrição</TableCell>
               <TableCell align="right">Ações</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {ritos.map((rito) => (
-              <TableRow key={rito.id}>
-                <TableCell>{rito.nome}</TableCell>
-                <TableCell>{rito.descricao}</TableCell>
-                <TableCell align="right">
-                  <IconButton onClick={() => handleOpenDialog(rito)}>
-                    <EditIcon />
-                  </IconButton>
-                  <IconButton onClick={() => handleDelete(rito.id)}>
-                    <DeleteIcon />
-                  </IconButton>
-                </TableCell>
-              </TableRow>
-            ))}
+            {filteredRitos
+              .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+              .map((rito) => (
+                <TableRow key={rito.id}>
+                  <TableCell>{rito.nome}</TableCell>
+                  <TableCell align="right">
+                    <IconButton onClick={() => handleOpenDialog(rito)}>
+                      <EditIcon />
+                    </IconButton>
+                    <IconButton onClick={() => handleDelete(rito.id)}>
+                      <DeleteIcon />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
           </TableBody>
         </Table>
+        <TablePagination
+          rowsPerPageOptions={[5, 10, 25]}
+          component="div"
+          count={filteredRitos.length}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          labelRowsPerPage="Linhas por página:"
+          labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
+        />
       </TableContainer>
 
       <Dialog open={openDialog} onClose={handleCloseDialog}>
@@ -146,6 +268,7 @@ const Ritos = () => {
               value={formData.nome}
               onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
               fullWidth
+              required
             />
             <TextField
               label="Descrição"
@@ -164,6 +287,38 @@ const Ritos = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Dialog
+        open={openDeleteDialog}
+        onClose={() => setOpenDeleteDialog(false)}
+      >
+        <DialogTitle>Confirmar Exclusão</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Tem certeza que deseja excluir este rito? Esta ação não pode ser desfeita.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDeleteDialog(false)}>Cancelar</Button>
+          <Button onClick={handleConfirmDelete} color="error" variant="contained">
+            Excluir
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };

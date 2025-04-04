@@ -18,13 +18,19 @@ import {
   DialogActions,
   TextField,
   Alert,
-  Snackbar
+  Snackbar,
+  DialogContentText,
+  TablePagination,
+  Grid
 } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import api from '../services/api';
+import useRequest from '../hooks/useRequest';
 
 const Potencias = () => {
   const [potencias, setPotencias] = useState([]);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingPotencia, setEditingPotencia] = useState(null);
   const [formData, setFormData] = useState({
@@ -36,20 +42,47 @@ const Potencias = () => {
     nome: '',
     sigla: ''
   });
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [potenciaToDelete, setPotenciaToDelete] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredPotencias, setFilteredPotencias] = useState([]);
+  const [filters, setFilters] = useState({
+    nome: '',
+    sigla: ''
+  });
+  const { execute } = useRequest();
 
   useEffect(() => {
     loadPotencias();
   }, []);
 
+  useEffect(() => {
+    const filtered = potencias.filter(potencia => {
+      const matchNome = !filters.nome || potencia.nome.toLowerCase().includes(filters.nome.toLowerCase());
+      const matchSigla = !filters.sigla || potencia.sigla.toLowerCase().includes(filters.sigla.toLowerCase());
+      return matchNome && matchSigla;
+    });
+    setFilteredPotencias(filtered);
+    setPage(0);
+  }, [filters, potencias]);
+
   const loadPotencias = async () => {
     try {
-      const response = await api.get('/potencias');
+      const response = await execute(() => api.get('/potencias'));
       setPotencias(response.data);
-    } catch (error) {
-      console.error('Erro ao carregar potências:', error);
+    } catch (err) {
+      console.error('Erro ao carregar potências:', err);
       setError('Erro ao carregar potências');
-      setSnackbarOpen(true);
+      setSnackbar({
+        open: true,
+        message: 'Erro ao carregar potências. Verifique a conexão com a internet e tente novamente mais tarde.',
+        severity: 'error'
+      });
     }
   };
 
@@ -107,14 +140,33 @@ const Potencias = () => {
     setFormErrors({ nome: '', sigla: '' });
   };
 
-  const handleSnackbarClose = (event, reason) => {
-    if (reason === 'clickaway') {
-      return;
-    }
-    setSnackbarOpen(false);
+  const handleDelete = async (id) => {
+    setPotenciaToDelete(id);
+    setOpenDeleteDialog(true);
   };
 
-  const handleSubmit = async () => {
+  const handleConfirmDelete = async () => {
+    try {
+      await execute(() => api.delete(`/potencias/${potenciaToDelete}`));
+      setSnackbar({
+        open: true,
+        message: 'Potência excluída com sucesso!',
+        severity: 'success'
+      });
+      loadPotencias();
+    } catch (err) {
+      console.error('Erro ao excluir potência:', err);
+      setSnackbar({
+        open: true,
+        message: 'Erro ao excluir potência. Por favor, tente novamente.',
+        severity: 'error'
+      });
+    }
+    setOpenDeleteDialog(false);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     try {
       setError(null);
       setFormErrors({ nome: '', sigla: '' });
@@ -128,38 +180,54 @@ const Potencias = () => {
         sigla: formData.sigla.trim()
       };
 
-      console.log('Dados a serem enviados:', data);
-      console.log('Token:', localStorage.getItem('token'));
-
       if (editingPotencia) {
-        await api.put(`/potencias/${editingPotencia.id}`, data);
+        await execute(() => api.put(`/potencias/${editingPotencia.id}`, data));
+        setSnackbar({
+          open: true,
+          message: 'Potência atualizada com sucesso!',
+          severity: 'success'
+        });
       } else {
-        await api.post('/potencias', data);
+        await execute(() => api.post('/potencias', data));
+        setSnackbar({
+          open: true,
+          message: 'Potência registrada com sucesso!',
+          severity: 'success'
+        });
       }
       handleCloseDialog();
       loadPotencias();
-    } catch (error) {
-      console.error('Erro ao salvar potência:', error);
-      if (error.response?.data?.error) {
-        setError(error.response.data.error);
-      } else {
-        setError('Erro ao salvar potência. Verifique os dados e tente novamente.');
-      }
-      setSnackbarOpen(true);
+    } catch (err) {
+      console.error('Erro ao salvar potência:', err);
+      setSnackbar({
+        open: true,
+        message: 'Erro ao salvar potência. Por favor, tente novamente.',
+        severity: 'error'
+      });
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Tem certeza que deseja excluir esta potência?')) {
-      try {
-        await api.delete(`/potencias/${id}`);
-        loadPotencias();
-      } catch (error) {
-        console.error('Erro ao excluir potência:', error);
-        setError('Erro ao excluir potência');
-        setSnackbarOpen(true);
-      }
-    }
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const handleFilterChange = (field, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      nome: '',
+      sigla: ''
+    });
   };
 
   return (
@@ -184,6 +252,37 @@ const Potencias = () => {
           </Alert>
         )}
 
+        <Paper sx={{ p: 2, mb: 2 }}>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                fullWidth
+                label="Nome"
+                value={filters.nome || ''}
+                onChange={(e) => handleFilterChange('nome', e.target.value)}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                fullWidth
+                label="Sigla"
+                value={filters.sigla || ''}
+                onChange={(e) => handleFilterChange('sigla', e.target.value)}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <Button
+                fullWidth
+                variant="outlined"
+                onClick={clearFilters}
+                sx={{ height: '56px' }}
+              >
+                Limpar Filtros
+              </Button>
+            </Grid>
+          </Grid>
+        </Paper>
+
         <TableContainer component={Paper}>
           <Table>
             <TableHead>
@@ -194,22 +293,35 @@ const Potencias = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {potencias.map((potencia) => (
-                <TableRow key={potencia.id}>
-                  <TableCell>{potencia.nome}</TableCell>
-                  <TableCell>{potencia.sigla}</TableCell>
-                  <TableCell align="right">
-                    <IconButton onClick={() => handleOpenDialog(potencia)}>
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton onClick={() => handleDelete(potencia.id)}>
-                      <DeleteIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {filteredPotencias
+                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                .map((potencia) => (
+                  <TableRow key={potencia.id}>
+                    <TableCell>{potencia.nome}</TableCell>
+                    <TableCell>{potencia.sigla}</TableCell>
+                    <TableCell align="right">
+                      <IconButton onClick={() => handleOpenDialog(potencia)}>
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton onClick={() => handleDelete(potencia.id)}>
+                        <DeleteIcon />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
             </TableBody>
           </Table>
+          <TablePagination
+            rowsPerPageOptions={[5, 10, 25]}
+            component="div"
+            count={filteredPotencias.length}
+            rowsPerPage={rowsPerPage}
+            page={page}
+            onPageChange={handleChangePage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+            labelRowsPerPage="Linhas por página:"
+            labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
+          />
         </TableContainer>
 
         <Dialog open={openDialog} onClose={handleCloseDialog}>
@@ -246,14 +358,36 @@ const Potencias = () => {
           </DialogActions>
         </Dialog>
 
-        <Snackbar
-          open={snackbarOpen}
-          autoHideDuration={6000}
-          onClose={handleSnackbarClose}
-          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        <Dialog
+          open={openDeleteDialog}
+          onClose={() => setOpenDeleteDialog(false)}
         >
-          <Alert onClose={handleSnackbarClose} severity="error" sx={{ width: '100%' }}>
-            {error}
+          <DialogTitle>Confirmar Exclusão</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              Tem certeza que deseja excluir esta potência? Esta ação não pode ser desfeita.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenDeleteDialog(false)}>Cancelar</Button>
+            <Button onClick={handleConfirmDelete} color="error" autoFocus>
+              Excluir
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        >
+          <Alert 
+            onClose={() => setSnackbar({ ...snackbar, open: false })} 
+            severity={snackbar.severity}
+            sx={{ width: '100%' }}
+          >
+            {snackbar.message}
           </Alert>
         </Snackbar>
       </Box>

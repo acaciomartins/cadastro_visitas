@@ -10,14 +10,15 @@ import {
   Link
 } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
+import { useLoading } from '../contexts/LoadingContext';
 
 const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { setLoading } = useLoading();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -69,7 +70,6 @@ const Login = () => {
               autoFocus
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              disabled={loading}
             />
             <TextField
               margin="normal"
@@ -82,7 +82,6 @@ const Login = () => {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
             />
             {error && (
               <Typography color="error" align="center" sx={{ mt: 2 }}>
@@ -94,9 +93,8 @@ const Login = () => {
               fullWidth
               variant="contained"
               sx={{ mt: 3, mb: 2 }}
-              disabled={loading}
             >
-              {loading ? 'Entrando...' : 'Entrar'}
+              Entrar
             </Button>
             <Box sx={{ textAlign: 'center' }}>
               <Link href="/register" variant="body2">
