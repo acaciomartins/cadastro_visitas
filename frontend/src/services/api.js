@@ -9,9 +9,11 @@ const api = axios.create({
   withCredentials: true
 });
 
+const storage = process.env.REACT_APP_TOKEN_STORAGE === 'localStorage' ? localStorage : sessionStorage;
+
 // Interceptor para adicionar o token JWT em todas as requisições
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = storage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
     console.log('Token sendo enviado:', token);
@@ -22,7 +24,7 @@ api.interceptors.request.use((config) => {
       data: config.data
     });
   } else {
-    console.warn('Token não encontrado no localStorage');
+    console.warn('Token não encontrado no storage');
   }
   return config;
 }, (error) => {
@@ -48,7 +50,7 @@ api.interceptors.response.use(
     
     if (error.response && error.response.status === 401) {
       console.log('Token expirado ou inválido, redirecionando para login');
-      localStorage.removeItem('token');
+      storage.removeItem('token');
       window.location.href = '/login';
     }
     return Promise.reject(error);

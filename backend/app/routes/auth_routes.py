@@ -5,8 +5,11 @@ from app import db
 
 bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
-@bp.route('/register', methods=['POST'])
+@bp.route('/register', methods=['POST', 'OPTIONS'])
 def register():
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     data = request.get_json()
     
     # Validar campos obrigatórios
@@ -41,17 +44,40 @@ def register():
         db.session.rollback()
         return jsonify({'error': str(e)}), 400
 
-@bp.route('/login', methods=['POST'])
+@bp.route('/login', methods=['POST', 'OPTIONS'])
 def login():
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     try:
+        if not request.is_json:
+            print("Requisição não contém JSON")
+            return jsonify({'error': 'O conteúdo deve ser JSON'}), 400
+            
         data = request.get_json()
         print(f"Dados recebidos no login: {data}")
         
+        if not data:
+            print("Nenhum dado recebido")
+            return jsonify({'error': 'Dados não fornecidos'}), 400
+            
+        if 'username' not in data or 'password' not in data:
+            print("Campos obrigatórios não fornecidos")
+            return jsonify({'error': 'Username e password são obrigatórios'}), 400
+            
         user = User.query.filter_by(username=data['username']).first()
         print(f"Usuário encontrado: {user}")
         
-        if not user or not user.check_password(data['password']):
-            print("Usuário não encontrado ou senha inválida")
+        if not user:
+            print("Usuário não encontrado")
+            return jsonify({'error': 'Usuário ou senha inválidos'}), 401
+            
+        print(f"Verificando senha para o usuário: {user.username}")
+        print(f"Hash da senha armazenada: {user.password_hash}")
+        print(f"Senha fornecida: {data['password']}")
+        
+        if not user.check_password(data['password']):
+            print("Senha inválida")
             return jsonify({'error': 'Usuário ou senha inválidos'}), 401
         
         access_token = create_access_token(identity=str(user.id))
@@ -60,17 +86,23 @@ def login():
         user_dict = user.to_dict()
         print(f"Dados do usuário: {user_dict}")
         
-        return jsonify({
+        response = jsonify({
             'access_token': access_token,
             'user': user_dict
-        }), 200
+        })
+        
+        print(f"Resposta enviada: {response.get_json()}")
+        return response, 200
     except Exception as e:
         print(f"Erro no login: {str(e)}")
-        return jsonify({'error': str(e)}), 422
+        return jsonify({'error': str(e)}), 500
 
-@bp.route('/me', methods=['GET'])
+@bp.route('/me', methods=['GET', 'OPTIONS'])
 @jwt_required(locations=['headers'], fresh=False)
 def get_current_user():
+    if request.method == 'OPTIONS':
+        return '', 200
+        
     try:
         user_id = get_jwt_identity()
         print(f"ID do usuário obtido do token: {user_id}")

@@ -25,23 +25,57 @@ import {
 import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import api from '../services/api';
 
+const estados = [
+  { uf: 'AC', nome: 'Acre' },
+  { uf: 'AL', nome: 'Alagoas' },
+  { uf: 'AP', nome: 'Amapá' },
+  { uf: 'AM', nome: 'Amazonas' },
+  { uf: 'BA', nome: 'Bahia' },
+  { uf: 'CE', nome: 'Ceará' },
+  { uf: 'DF', nome: 'Distrito Federal' },
+  { uf: 'ES', nome: 'Espírito Santo' },
+  { uf: 'GO', nome: 'Goiás' },
+  { uf: 'MA', nome: 'Maranhão' },
+  { uf: 'MT', nome: 'Mato Grosso' },
+  { uf: 'MS', nome: 'Mato Grosso do Sul' },
+  { uf: 'MG', nome: 'Minas Gerais' },
+  { uf: 'PA', nome: 'Pará' },
+  { uf: 'PB', nome: 'Paraíba' },
+  { uf: 'PR', nome: 'Paraná' },
+  { uf: 'PE', nome: 'Pernambuco' },
+  { uf: 'PI', nome: 'Piauí' },
+  { uf: 'RJ', nome: 'Rio de Janeiro' },
+  { uf: 'RN', nome: 'Rio Grande do Norte' },
+  { uf: 'RS', nome: 'Rio Grande do Sul' },
+  { uf: 'RO', nome: 'Rondônia' },
+  { uf: 'RR', nome: 'Roraima' },
+  { uf: 'SC', nome: 'Santa Catarina' },
+  { uf: 'SP', nome: 'São Paulo' },
+  { uf: 'SE', nome: 'Sergipe' },
+  { uf: 'TO', nome: 'Tocantins' }
+];
+
 const Lojas = () => {
   const [lojas, setLojas] = useState([]);
   const [potencias, setPotencias] = useState([]);
   const [ritos, setRitos] = useState([]);
+  const [orientes, setOrientes] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingLoja, setEditingLoja] = useState(null);
   const [formData, setFormData] = useState({
     nome: '',
     numero: '',
     potencia_id: '',
-    rito_id: ''
+    rito_id: '',
+    oriente_nome: '',
+    oriente_uf: ''
   });
 
   useEffect(() => {
     loadLojas();
     loadPotencias();
     loadRitos();
+    loadOrientes();
   }, []);
 
   const loadLojas = async () => {
@@ -71,6 +105,15 @@ const Lojas = () => {
     }
   };
 
+  const loadOrientes = async () => {
+    try {
+      const response = await api.get('/orientes');
+      setOrientes(response.data);
+    } catch (error) {
+      console.error('Erro ao carregar orientes:', error);
+    }
+  };
+
   const handleOpenDialog = (loja = null) => {
     if (loja) {
       setEditingLoja(loja);
@@ -78,7 +121,9 @@ const Lojas = () => {
         nome: loja.nome,
         numero: loja.numero,
         potencia_id: loja.potencia_id,
-        rito_id: loja.rito_id
+        rito_id: loja.rito_id,
+        oriente_nome: loja.oriente?.nome,
+        oriente_uf: loja.oriente?.uf
       });
     } else {
       setEditingLoja(null);
@@ -86,7 +131,9 @@ const Lojas = () => {
         nome: '',
         numero: '',
         potencia_id: '',
-        rito_id: ''
+        rito_id: '',
+        oriente_nome: '',
+        oriente_uf: ''
       });
     }
     setOpenDialog(true);
@@ -99,16 +146,27 @@ const Lojas = () => {
       nome: '',
       numero: '',
       potencia_id: '',
-      rito_id: ''
+      rito_id: '',
+      oriente_nome: '',
+      oriente_uf: ''
     });
   };
 
   const handleSubmit = async () => {
     try {
+      const payload = {
+        nome: formData.nome,
+        numero: formData.numero,
+        potencia_id: formData.potencia_id,
+        rito_id: formData.rito_id,
+        oriente_nome: formData.oriente_nome,
+        oriente_uf: formData.oriente_uf
+      };
+
       if (editingLoja) {
-        await api.put(`/lojas/${editingLoja.id}`, formData);
+        await api.put(`/lojas/${editingLoja.id}`, payload);
       } else {
-        await api.post('/lojas', formData);
+        await api.post('/lojas', payload);
       }
       handleCloseDialog();
       loadLojas();
@@ -149,6 +207,7 @@ const Lojas = () => {
               <TableCell>Número</TableCell>
               <TableCell>Potência</TableCell>
               <TableCell>Rito</TableCell>
+              <TableCell>Oriente</TableCell>
               <TableCell align="right">Ações</TableCell>
             </TableRow>
           </TableHead>
@@ -159,6 +218,7 @@ const Lojas = () => {
                 <TableCell>{loja.numero}</TableCell>
                 <TableCell>{loja.potencia?.nome}</TableCell>
                 <TableCell>{loja.rito?.nome}</TableCell>
+                <TableCell>{loja.oriente?.nome}</TableCell>
                 <TableCell align="right">
                   <IconButton onClick={() => handleOpenDialog(loja)}>
                     <EditIcon />
@@ -215,6 +275,26 @@ const Lojas = () => {
                 {ritos.map((rito) => (
                   <MenuItem key={rito.id} value={rito.id}>
                     {rito.nome}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <TextField
+              label="Nome do Oriente"
+              value={formData.oriente_nome}
+              onChange={(e) => setFormData({ ...formData, oriente_nome: e.target.value })}
+              fullWidth
+            />
+            <FormControl fullWidth>
+              <InputLabel>UF</InputLabel>
+              <Select
+                value={formData.oriente_uf}
+                onChange={(e) => setFormData({ ...formData, oriente_uf: e.target.value })}
+                label="UF"
+              >
+                {estados.map((estado) => (
+                  <MenuItem key={estado.uf} value={estado.uf}>
+                    {estado.nome} ({estado.uf})
                   </MenuItem>
                 ))}
               </Select>
