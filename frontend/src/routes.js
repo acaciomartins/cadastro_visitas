@@ -10,6 +10,8 @@ import Potencias from './pages/Potencias';
 import Ritos from './pages/Ritos';
 import Graus from './pages/Graus';
 import Lojas from './pages/Lojas';
+import Visitas from './pages/Visitas';
+import Sessoes from './pages/Sessoes';
 
 const AppRoutes = () => {
   return (
@@ -64,6 +66,26 @@ const AppRoutes = () => {
               <PrivateRoute>
                 <Layout>
                   <Lojas />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/visitas"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <Visitas />
+                </Layout>
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/sessoes"
+            element={
+              <PrivateRoute>
+                <Layout>
+                  <Sessoes />
                 </Layout>
               </PrivateRoute>
             }

@@ -21,7 +21,9 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Grid
+  Grid,
+  Checkbox,
+  FormControlLabel
 } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -34,14 +36,23 @@ const Visitas = () => {
   const [visitas, setVisitas] = useState([]);
   const [lojas, setLojas] = useState([]);
   const [graus, setGraus] = useState([]);
+  const [ritos, setRitos] = useState([]);
+  const [potencias, setPotencias] = useState([]);
+  const [sessoes, setSessoes] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingVisita, setEditingVisita] = useState(null);
   const [formData, setFormData] = useState({
-    data: new Date(),
+    data_visita: new Date(),
     loja_id: '',
+    sessao_id: '',
     grau_id: '',
-    nome_visitante: '',
-    cargo: '',
+    rito_id: '',
+    potencia_id: '',
+    prancha_presenca: false,
+    possui_certificado: false,
+    registro_loja: false,
+    data_entrega_certificado: null,
+    certificado_scaniado: false,
     observacoes: ''
   });
 
@@ -49,6 +60,9 @@ const Visitas = () => {
     loadVisitas();
     loadLojas();
     loadGraus();
+    loadRitos();
+    loadPotencias();
+    loadSessoes();
   }, []);
 
   const loadVisitas = async () => {
@@ -78,25 +92,64 @@ const Visitas = () => {
     }
   };
 
+  const loadRitos = async () => {
+    try {
+      const response = await api.get('/ritos');
+      setRitos(response.data);
+    } catch (error) {
+      console.error('Erro ao carregar ritos:', error);
+    }
+  };
+
+  const loadPotencias = async () => {
+    try {
+      const response = await api.get('/potencias');
+      setPotencias(response.data);
+    } catch (error) {
+      console.error('Erro ao carregar potências:', error);
+    }
+  };
+
+  const loadSessoes = async () => {
+    try {
+      const response = await api.get('/sessoes');
+      setSessoes(response.data);
+    } catch (error) {
+      console.error('Erro ao carregar sessões:', error);
+    }
+  };
+
   const handleOpenDialog = (visita = null) => {
     if (visita) {
       setEditingVisita(visita);
       setFormData({
-        data: new Date(visita.data),
+        data_visita: new Date(visita.data_visita),
         loja_id: visita.loja_id,
+        sessao_id: visita.sessao_id,
         grau_id: visita.grau_id,
-        nome_visitante: visita.nome_visitante,
-        cargo: visita.cargo,
+        rito_id: visita.rito_id,
+        potencia_id: visita.potencia_id,
+        prancha_presenca: visita.prancha_presenca,
+        possui_certificado: visita.possui_certificado,
+        registro_loja: visita.registro_loja,
+        data_entrega_certificado: visita.data_entrega_certificado ? new Date(visita.data_entrega_certificado) : null,
+        certificado_scaniado: visita.certificado_scaniado,
         observacoes: visita.observacoes
       });
     } else {
       setEditingVisita(null);
       setFormData({
-        data: new Date(),
+        data_visita: new Date(),
         loja_id: '',
+        sessao_id: '',
         grau_id: '',
-        nome_visitante: '',
-        cargo: '',
+        rito_id: '',
+        potencia_id: '',
+        prancha_presenca: false,
+        possui_certificado: false,
+        registro_loja: false,
+        data_entrega_certificado: null,
+        certificado_scaniado: false,
         observacoes: ''
       });
     }
@@ -107,21 +160,33 @@ const Visitas = () => {
     setOpenDialog(false);
     setEditingVisita(null);
     setFormData({
-      data: new Date(),
+      data_visita: new Date(),
       loja_id: '',
+      sessao_id: '',
       grau_id: '',
-      nome_visitante: '',
-      cargo: '',
+      rito_id: '',
+      potencia_id: '',
+      prancha_presenca: false,
+      possui_certificado: false,
+      registro_loja: false,
+      data_entrega_certificado: null,
+      certificado_scaniado: false,
       observacoes: ''
     });
   };
 
   const handleSubmit = async () => {
     try {
+      const data = {
+        ...formData,
+        data_visita: formData.data_visita.toISOString().split('T')[0],
+        data_entrega_certificado: formData.data_entrega_certificado ? formData.data_entrega_certificado.toISOString().split('T')[0] : null
+      };
+
       if (editingVisita) {
-        await api.put(`/visitas/${editingVisita.id}`, formData);
+        await api.put(`/visitas/${editingVisita.id}`, data);
       } else {
-        await api.post('/visitas', formData);
+        await api.post('/visitas', data);
       }
       handleCloseDialog();
       loadVisitas();
@@ -159,21 +224,27 @@ const Visitas = () => {
           <TableHead>
             <TableRow>
               <TableCell>Data</TableCell>
-              <TableCell>Visitante</TableCell>
-              <TableCell>Cargo</TableCell>
               <TableCell>Loja</TableCell>
+              <TableCell>Sessão</TableCell>
               <TableCell>Grau</TableCell>
+              <TableCell>Rito</TableCell>
+              <TableCell>Potência</TableCell>
+              <TableCell>Prancha</TableCell>
+              <TableCell>Certificado</TableCell>
               <TableCell align="right">Ações</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {visitas.map((visita) => (
               <TableRow key={visita.id}>
-                <TableCell>{new Date(visita.data).toLocaleDateString('pt-BR')}</TableCell>
-                <TableCell>{visita.nome_visitante}</TableCell>
-                <TableCell>{visita.cargo}</TableCell>
+                <TableCell>{new Date(visita.data_visita).toLocaleDateString('pt-BR')}</TableCell>
                 <TableCell>{visita.loja?.nome}</TableCell>
-                <TableCell>{visita.grau?.nome}</TableCell>
+                <TableCell>{visita.sessao?.descricao}</TableCell>
+                <TableCell>{visita.grau?.descricao}</TableCell>
+                <TableCell>{visita.rito?.nome}</TableCell>
+                <TableCell>{visita.potencia?.nome}</TableCell>
+                <TableCell>{visita.prancha_presenca ? 'Sim' : 'Não'}</TableCell>
+                <TableCell>{visita.possui_certificado ? 'Sim' : 'Não'}</TableCell>
                 <TableCell align="right">
                   <IconButton onClick={() => handleOpenDialog(visita)}>
                     <EditIcon />
@@ -198,9 +269,9 @@ const Visitas = () => {
               <Grid item xs={12} md={6}>
                 <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ptBR}>
                   <DatePicker
-                    label="Data"
-                    value={formData.data}
-                    onChange={(date) => setFormData({ ...formData, data: date })}
+                    label="Data da Visita"
+                    value={formData.data_visita}
+                    onChange={(date) => setFormData({ ...formData, data_visita: date })}
                     renderInput={(params) => <TextField {...params} fullWidth />}
                   />
                 </LocalizationProvider>
@@ -223,6 +294,22 @@ const Visitas = () => {
               </Grid>
               <Grid item xs={12} md={6}>
                 <FormControl fullWidth>
+                  <InputLabel>Sessão</InputLabel>
+                  <Select
+                    value={formData.sessao_id}
+                    onChange={(e) => setFormData({ ...formData, sessao_id: e.target.value })}
+                    label="Sessão"
+                  >
+                    {sessoes.map((sessao) => (
+                      <MenuItem key={sessao.id} value={sessao.id}>
+                        {sessao.descricao}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth>
                   <InputLabel>Grau</InputLabel>
                   <Select
                     value={formData.grau_id}
@@ -231,26 +318,96 @@ const Visitas = () => {
                   >
                     {graus.map((grau) => (
                       <MenuItem key={grau.id} value={grau.id}>
-                        {grau.nome}
+                        {grau.descricao}
                       </MenuItem>
                     ))}
                   </Select>
                 </FormControl>
               </Grid>
               <Grid item xs={12} md={6}>
-                <TextField
-                  label="Nome do Visitante"
-                  value={formData.nome_visitante}
-                  onChange={(e) => setFormData({ ...formData, nome_visitante: e.target.value })}
-                  fullWidth
+                <FormControl fullWidth>
+                  <InputLabel>Rito</InputLabel>
+                  <Select
+                    value={formData.rito_id}
+                    onChange={(e) => setFormData({ ...formData, rito_id: e.target.value })}
+                    label="Rito"
+                  >
+                    {ritos.map((rito) => (
+                      <MenuItem key={rito.id} value={rito.id}>
+                        {rito.nome}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Potência</InputLabel>
+                  <Select
+                    value={formData.potencia_id}
+                    onChange={(e) => setFormData({ ...formData, potencia_id: e.target.value })}
+                    label="Potência"
+                  >
+                    {potencias.map((potencia) => (
+                      <MenuItem key={potencia.id} value={potencia.id}>
+                        {potencia.nome}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={formData.prancha_presenca}
+                      onChange={(e) => setFormData({ ...formData, prancha_presenca: e.target.checked })}
+                    />
+                  }
+                  label="Prancha de Presença"
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={formData.possui_certificado}
+                      onChange={(e) => setFormData({ ...formData, possui_certificado: e.target.checked })}
+                    />
+                  }
+                  label="Possui Certificado"
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={formData.registro_loja}
+                      onChange={(e) => setFormData({ ...formData, registro_loja: e.target.checked })}
+                    />
+                  }
+                  label="Registro na Loja"
                 />
               </Grid>
               <Grid item xs={12} md={6}>
-                <TextField
-                  label="Cargo"
-                  value={formData.cargo}
-                  onChange={(e) => setFormData({ ...formData, cargo: e.target.value })}
-                  fullWidth
+                <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ptBR}>
+                  <DatePicker
+                    label="Data de Entrega do Certificado"
+                    value={formData.data_entrega_certificado}
+                    onChange={(date) => setFormData({ ...formData, data_entrega_certificado: date })}
+                    renderInput={(params) => <TextField {...params} fullWidth />}
+                  />
+                </LocalizationProvider>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={formData.certificado_scaniado}
+                      onChange={(e) => setFormData({ ...formData, certificado_scaniado: e.target.checked })}
+                    />
+                  }
+                  label="Certificado Scaniado"
                 />
               </Grid>
               <Grid item xs={12}>
@@ -268,7 +425,7 @@ const Visitas = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>Cancelar</Button>
-          <Button onClick={handleSubmit} variant="contained">
+          <Button onClick={handleSubmit} variant="contained" color="primary">
             Salvar
           </Button>
         </DialogActions>

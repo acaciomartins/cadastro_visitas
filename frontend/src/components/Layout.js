@@ -21,6 +21,8 @@ import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import TempleBuddhistIcon from '@mui/icons-material/TempleBuddhist';
 import SchoolIcon from '@mui/icons-material/School';
 import BusinessIcon from '@mui/icons-material/Business';
+import EventIcon from '@mui/icons-material/Event';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 
 const Layout = ({ children }) => {
   const navigate = useNavigate();
@@ -39,6 +41,8 @@ const Layout = ({ children }) => {
     { text: 'Ritos', icon: <TempleBuddhistIcon />, path: '/ritos' },
     { text: 'Graus', icon: <SchoolIcon />, path: '/graus' },
     { text: 'Lojas', icon: <BusinessIcon />, path: '/lojas' },
+    { text: 'Visitas', icon: <EventIcon />, path: '/visitas' },
+    { text: 'Sessões', icon: <CalendarMonthIcon />, path: '/sessoes' },
   ];
 
   const toggleDrawer = (open) => (event) => {

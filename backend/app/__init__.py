@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from flask import Flask
+from flask import Flask, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
@@ -55,7 +55,7 @@ def init_db(app):
                     Rito(nome='Rito de York', descricao='Rito praticado em algumas potências')
                 ]
                 db.session.bulk_save_objects(ritos)
-                print("Ritos iniciais criados com sucesso!")
+                print("Ritos iniciais criadas com sucesso!")
             
             # Verificar graus
             if Grau.query.count() == 0:
@@ -65,7 +65,7 @@ def init_db(app):
                     Grau(numero=3, descricao='Mestre')
                 ]
                 db.session.bulk_save_objects(graus)
-                print("Graus iniciais criados com sucesso!")
+                print("Graus iniciais criadas com sucesso!")
             
             # Verificar sessões
             if Sessao.query.count() == 0:
@@ -122,14 +122,25 @@ def create_app():
     # Configurar CORS
     CORS(app, resources={
         r"/api/*": {
-            "origins": "*",
-            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],
+            "origins": ["http://localhost:3000"],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+            "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"],
             "supports_credentials": True,
             "expose_headers": ["Content-Type", "Authorization"],
             "max_age": 3600
         }
     })
+    
+    # Configurar CORS para todas as rotas
+    @app.after_request
+    def after_request(response):
+        origin = request.headers.get('Origin')
+        if origin and origin == 'http://localhost:3000':
+            response.headers.add('Access-Control-Allow-Origin', origin)
+            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+            response.headers.add('Access-Control-Allow-Credentials', 'true')
+        return response
     
     # Inicializar extensões
     db.init_app(app)

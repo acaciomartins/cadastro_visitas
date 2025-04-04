@@ -66,7 +66,7 @@ def login():
             return jsonify({'error': 'Username e password são obrigatórios'}), 400
             
         user = User.query.filter_by(username=data['username']).first()
-        print(f"Usuário encontrado: {user}")
+        print(f"Usuário encontrado: {user.username if user else 'Não encontrado'}")
         
         if not user:
             print("Usuário não encontrado")
