@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
 
 const api = axios.create({
   baseURL: 'http://localhost:5000/api',
@@ -43,7 +44,7 @@ api.interceptors.request.use(async config => {
   return Promise.reject(error);
 });
 
-// Interceptor para lidar com erros de autenticação
+// Interceptor para lidar com erros de autenticação e refresh token
 api.interceptors.response.use(
   (response) => {
     console.log('Resposta recebida:', {
@@ -53,7 +54,46 @@ api.interceptors.response.use(
     });
     return response;
   },
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+
+    // Se o erro for 401 e não for uma tentativa de refresh
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        const refreshToken = localStorage.getItem('@CadastroVisitas:refreshToken');
+        if (!refreshToken) {
+          throw new Error('Refresh token não encontrado');
+        }
+
+        // Tenta obter um novo token
+        const response = await api.post('/auth/refresh', {}, {
+          headers: {
+            'Authorization': `Bearer ${refreshToken}`
+          }
+        });
+
+        const { access_token } = response.data;
+
+        // Atualiza o token no localStorage
+        localStorage.setItem('@CadastroVisitas:token', access_token);
+
+        // Atualiza o header da requisição original
+        originalRequest.headers['Authorization'] = `Bearer ${access_token}`;
+
+        // Refaz a requisição original com o novo token
+        return api(originalRequest);
+      } catch (refreshError) {
+        // Se falhar o refresh, faz logout
+        localStorage.removeItem('@CadastroVisitas:token');
+        localStorage.removeItem('@CadastroVisitas:refreshToken');
+        localStorage.removeItem('@CadastroVisitas:user');
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      }
+    }
+
     console.error('Erro na resposta:', {
       url: error.config?.url,
       status: error.response?.status,
@@ -63,13 +103,6 @@ api.interceptors.response.use(
     
     if (error.response) {
       switch (error.response.status) {
-        case 401:
-          console.log('Token expirado ou inválido, redirecionando para login');
-          localStorage.removeItem('@CadastroVisitas:token');
-          localStorage.removeItem('@CadastroVisitas:user');
-          delete api.defaults.headers.common['Authorization'];
-          window.location.href = '/login';
-          break;
         case 403:
           console.error('Acesso negado:', error.response.data.error);
           break;

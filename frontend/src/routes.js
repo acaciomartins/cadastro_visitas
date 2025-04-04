@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoadingProvider } from './contexts/LoadingContext';
 import PrivateRoute from './components/PrivateRoute';
 import Layout from './components/Layout';
@@ -13,6 +13,7 @@ import Graus from './pages/Graus';
 import Lojas from './pages/Lojas';
 import Visitas from './pages/Visitas';
 import Sessoes from './pages/Sessoes';
+import ChangePassword from './pages/ChangePassword';
 
 const AppRoutes = () => {
   return (
@@ -89,6 +90,14 @@ const AppRoutes = () => {
                   <Layout>
                     <Sessoes />
                   </Layout>
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/change-password"
+              element={
+                <PrivateRoute>
+                  <ChangePassword />
                 </PrivateRoute>
               }
             />

@@ -7,6 +7,15 @@ from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from datetime import timedelta
 import os
+from .config import Config
+from .extensions import init_app
+from .routes.auth import auth_bp
+from .routes.visitas import visitas_bp
+from .routes.sessoes import sessoes_bp
+from .routes.ritos import ritos_bp
+from .routes.graus import graus_bp
+from .routes.potencias import potencias_bp
+from .routes.lojas import lojas_bp
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -94,31 +103,10 @@ def init_db(app):
             print("Erro ao inicializar banco de dados: " + str(e))
             db.session.rollback()
 
-def create_app():
+def create_app(config_class=Config):
     app = Flask(__name__)
-    
-    # Configurações
-    basedir = os.path.abspath(os.path.dirname(__file__))
-    instance_path = os.path.join(basedir, "..", "instance")
-    if not os.path.exists(instance_path):
-        os.makedirs(instance_path, mode=0o777)
-    
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(instance_path, "app.db")}'
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'sua_chave_secreta_aqui')
-    app.config['JWT_TOKEN_LOCATION'] = ['headers']
-    app.config['JWT_HEADER_NAME'] = 'Authorization'
-    app.config['JWT_HEADER_TYPE'] = 'Bearer'
-    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
-    app.config['JWT_ERROR_MESSAGE_KEY'] = 'error'
-    app.config['JWT_IDENTITY_CLAIM'] = 'sub'
-    app.config['JWT_ALGORITHM'] = 'HS256'
-    app.config['JWT_DECODE_ALGORITHMS'] = ['HS256']
-    app.config['JWT_QUERY_STRING_NAME'] = 'token'
-    app.config['JWT_COOKIE_CSRF_PROTECT'] = False
-    app.config['JWT_CSRF_CHECK_FORM'] = False
-    app.config['UPLOAD_FOLDER'] = 'uploads'
-    
+    app.config.from_object(config_class)
+
     # Configurar CORS - Permitir todas as origens durante o desenvolvimento
     CORS(app, resources={
         r"/api/*": {
@@ -131,21 +119,16 @@ def create_app():
     })
     
     # Inicializar extensões
-    db.init_app(app)
-    migrate.init_app(app, db)
-    jwt.init_app(app)
+    init_app(app)
     
     # Registrar blueprints
-    from app.routes import auth_bp, loja_bp, potencia_bp, rito_bp, visita_bp, sessao_bp, grau_bp, oriente_bp
-    
-    app.register_blueprint(auth_bp)
-    app.register_blueprint(loja_bp)
-    app.register_blueprint(potencia_bp)
-    app.register_blueprint(rito_bp)
-    app.register_blueprint(visita_bp)
-    app.register_blueprint(sessao_bp)
-    app.register_blueprint(grau_bp)
-    app.register_blueprint(oriente_bp)
+    app.register_blueprint(auth_bp, url_prefix='/api/auth')
+    app.register_blueprint(visitas_bp, url_prefix='/api/visitas')
+    app.register_blueprint(sessoes_bp, url_prefix='/api/sessoes')
+    app.register_blueprint(ritos_bp, url_prefix='/api/ritos')
+    app.register_blueprint(graus_bp, url_prefix='/api/graus')
+    app.register_blueprint(potencias_bp, url_prefix='/api/potencias')
+    app.register_blueprint(lojas_bp, url_prefix='/api/lojas')
     
     # Inicializar banco de dados
     init_db(app)
