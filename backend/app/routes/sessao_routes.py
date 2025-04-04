@@ -5,19 +5,19 @@ from app import db
 
 bp = Blueprint('sessoes', __name__, url_prefix='/api/sessoes')
 
-@bp.route('/', methods=['GET'])
+@bp.route('', methods=['GET'], strict_slashes=False)
 @jwt_required()
 def get_sessoes():
     sessoes = Sessao.query.all()
     return jsonify([sessao.to_dict() for sessao in sessoes])
 
-@bp.route('/<int:id>', methods=['GET'])
+@bp.route('/<int:id>', methods=['GET'], strict_slashes=False)
 @jwt_required()
 def get_sessao(id):
     sessao = Sessao.query.get_or_404(id)
     return jsonify(sessao.to_dict())
 
-@bp.route('/', methods=['POST'])
+@bp.route('', methods=['POST'], strict_slashes=False)
 @jwt_required()
 def create_sessao():
     user = User.query.get(get_jwt_identity())
@@ -32,7 +32,7 @@ def create_sessao():
     
     return jsonify(sessao.to_dict()), 201
 
-@bp.route('/<int:id>', methods=['PUT'])
+@bp.route('/<int:id>', methods=['PUT'], strict_slashes=False)
 @jwt_required()
 def update_sessao(id):
     user = User.query.get(get_jwt_identity())
@@ -47,7 +47,7 @@ def update_sessao(id):
     
     return jsonify(sessao.to_dict())
 
-@bp.route('/<int:id>', methods=['DELETE'])
+@bp.route('/<int:id>', methods=['DELETE'], strict_slashes=False)
 @jwt_required()
 def delete_sessao(id):
     user = User.query.get(get_jwt_identity())

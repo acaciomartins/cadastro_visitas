@@ -103,7 +103,7 @@ def create_app():
     if not os.path.exists(instance_path):
         os.makedirs(instance_path, mode=0o777)
     
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(instance_path, "masonic_visits.db")}'
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(instance_path, "app.db")}'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'sua_chave_secreta_aqui')
     app.config['JWT_TOKEN_LOCATION'] = ['headers']
@@ -119,28 +119,16 @@ def create_app():
     app.config['JWT_CSRF_CHECK_FORM'] = False
     app.config['UPLOAD_FOLDER'] = 'uploads'
     
-    # Configurar CORS
+    # Configurar CORS - Permitir todas as origens durante o desenvolvimento
     CORS(app, resources={
         r"/api/*": {
             "origins": ["http://localhost:3000"],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
             "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"],
-            "supports_credentials": True,
             "expose_headers": ["Content-Type", "Authorization"],
-            "max_age": 3600
+            "supports_credentials": True
         }
     })
-    
-    # Configurar CORS para todas as rotas
-    @app.after_request
-    def after_request(response):
-        origin = request.headers.get('Origin')
-        if origin and origin == 'http://localhost:3000':
-            response.headers.add('Access-Control-Allow-Origin', origin)
-            response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-            response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-            response.headers.add('Access-Control-Allow-Credentials', 'true')
-        return response
     
     # Inicializar extensões
     db.init_app(app)
@@ -161,5 +149,18 @@ def create_app():
     
     # Inicializar banco de dados
     init_db(app)
+    
+    # Cria as tabelas se não existirem
+    with app.app_context():
+        db.create_all()
+        
+        # Adiciona a coluna user_id se não existir
+        try:
+            db.engine.execute('ALTER TABLE lojas ADD COLUMN user_id INTEGER REFERENCES users(id)')
+        except Exception as e:
+            print(f"Coluna user_id já existe ou erro ao adicionar: {str(e)}")
+        
+        # Inicializa dados básicos
+        from app.models import User, Potencia, Rito, Grau
     
     return app 

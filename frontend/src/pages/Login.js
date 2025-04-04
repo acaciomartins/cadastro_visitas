@@ -17,14 +17,29 @@ const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    setLoading(true);
+    
     try {
+      console.log('Tentando fazer login com:', { username });
       await login(username, password);
+      console.log('Login bem-sucedido, redirecionando...');
       navigate('/');
     } catch (err) {
-      setError('Usuário ou senha inválidos');
+      console.error('Erro ao fazer login:', err);
+      if (err.response?.data?.error) {
+        setError(err.response.data.error);
+      } else if (err.message) {
+        setError(err.message);
+      } else {
+        setError('Erro ao fazer login. Por favor, tente novamente.');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -54,6 +69,7 @@ const Login = () => {
               autoFocus
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+              disabled={loading}
             />
             <TextField
               margin="normal"
@@ -66,9 +82,10 @@ const Login = () => {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
             />
             {error && (
-              <Typography color="error" align="center">
+              <Typography color="error" align="center" sx={{ mt: 2 }}>
                 {error}
               </Typography>
             )}
@@ -77,8 +94,9 @@ const Login = () => {
               fullWidth
               variant="contained"
               sx={{ mt: 3, mb: 2 }}
+              disabled={loading}
             >
-              Entrar
+              {loading ? 'Entrando...' : 'Entrar'}
             </Button>
             <Box sx={{ textAlign: 'center' }}>
               <Link href="/register" variant="body2">

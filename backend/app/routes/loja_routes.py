@@ -21,7 +21,13 @@ def get_lojas():
             print("Usuário não encontrado")
             return jsonify({'error': 'Usuário não encontrado'}), 404
             
-        lojas = Loja.query.all()
+        # Se for admin, retorna todas as lojas
+        if user.is_admin:
+            lojas = Loja.query.all()
+        else:
+            # Se não for admin, retorna apenas as lojas do usuário
+            lojas = Loja.query.filter_by(user_id=user_id).all()
+            
         print(f"Encontradas {len(lojas)} lojas")
         return jsonify([loja.to_dict() for loja in lojas])
     except Exception as e:
@@ -47,6 +53,12 @@ def get_loja(id):
         if not loja:
             print(f"Loja com ID {id} não encontrada")
             return jsonify({'error': 'Loja não encontrada'}), 404
+            
+        # Verificar se o usuário é admin ou se a loja pertence ao usuário
+        if not user.is_admin and loja.user_id != user_id:
+            print("Usuário não tem permissão para ver esta loja")
+            return jsonify({'error': 'Você não tem permissão para ver esta loja'}), 403
+            
         return jsonify(loja.to_dict())
     except Exception as e:
         print(f"Erro ao buscar loja: {str(e)}")
@@ -107,6 +119,9 @@ def create_loja():
             db.session.add(oriente)
             db.session.flush()  # Para obter o ID do oriente
         
+        # Obter o ID do usuário do token
+        user_id = get_jwt_identity()
+        
         # Criar loja
         print("Criando nova loja")
         loja = Loja(
@@ -114,7 +129,8 @@ def create_loja():
             numero=data['numero'],
             potencia_id=data['potencia_id'],
             rito_id=data['rito_id'],
-            oriente_id=oriente.id
+            oriente_id=oriente.id,
+            user_id=user_id
         )
         
         db.session.add(loja)
@@ -127,11 +143,24 @@ def create_loja():
         db.session.rollback()
         return jsonify({'error': str(e)}), 400
 
-@bp.route('/lojas/<int:id>', methods=['PUT'])
+@bp.route('/<int:id>', methods=['PUT'], strict_slashes=False)
 @jwt_required()
 def update_loja(id):
     try:
-        loja = Loja.query.get_or_404(id)
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        if not user:
+            return jsonify({'error': 'Usuário não encontrado'}), 404
+            
+        loja = Loja.query.get(id)
+        if not loja:
+            return jsonify({'error': 'Loja não encontrada'}), 404
+            
+        # Verificar se o usuário é admin ou se a loja pertence ao usuário
+        if not user.is_admin and loja.user_id != user_id:
+            return jsonify({'error': 'Você não tem permissão para atualizar esta loja'}), 403
+            
         data = request.get_json()
         
         # Validar campos obrigatórios
@@ -199,15 +228,16 @@ def delete_loja(id):
         if not user:
             print("Usuário não encontrado")
             return jsonify({'error': 'Usuário não encontrado'}), 404
-            
-        if not user.is_admin:
-            print("Usuário não é administrador")
-            return jsonify({'error': 'Apenas administradores podem deletar lojas'}), 403
         
         loja = Loja.query.get(id)
         if not loja:
             print(f"Loja com ID {id} não encontrada")
             return jsonify({'error': 'Loja não encontrada'}), 404
+            
+        # Verificar se o usuário é admin ou se a loja pertence ao usuário
+        if not user.is_admin and loja.user_id != user_id:
+            print("Usuário não tem permissão para deletar esta loja")
+            return jsonify({'error': 'Você não tem permissão para deletar esta loja'}), 403
             
         print(f"Deletando loja: {loja.to_dict()}")
         db.session.delete(loja)

@@ -11,7 +11,8 @@ import {
   ListItemIcon,
   ListItemText,
   IconButton,
-  Divider
+  Divider,
+  Avatar
 } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -27,7 +28,7 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 const Layout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signed, logout } = useAuth();
+  const { signed, logout, user } = useAuth();
   const [drawerOpen, setDrawerOpen] = React.useState(false);
 
   const handleLogout = () => {
@@ -69,9 +70,19 @@ const Layout = ({ children }) => {
             Cadastro de Visitas Maçônicas
           </Typography>
           {signed && (
-            <Button color="inherit" onClick={handleLogout}>
-              Sair
-            </Button>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Avatar sx={{ bgcolor: 'secondary.main' }}>
+                  {user?.username?.charAt(0).toUpperCase()}
+                </Avatar>
+                <Typography variant="body1">
+                  {user?.username}
+                </Typography>
+              </Box>
+              <Button color="inherit" onClick={handleLogout}>
+                Sair
+              </Button>
+            </Box>
           )}
         </Toolbar>
       </AppBar>
