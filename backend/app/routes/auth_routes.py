@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from app.models import User
-from app import db
+from app.extensions import db
 
 bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
@@ -15,6 +15,8 @@ def register():
     # Validar campos obrigatórios
     if not data.get('username'):
         return jsonify({'error': 'O campo username é obrigatório'}), 400
+    if not data.get('name'):
+        return jsonify({'error': 'O campo name é obrigatório'}), 400
     if not data.get('email'):
         return jsonify({'error': 'O campo email é obrigatório'}), 400
     if not data.get('password'):
@@ -31,6 +33,7 @@ def register():
     try:
         user = User(
             username=data['username'],
+            name=data['name'],
             email=data['email'],
             is_admin=data.get('is_admin', False)
         )
@@ -66,16 +69,11 @@ def login():
             return jsonify({'error': 'Username e password são obrigatórios'}), 400
             
         user = User.query.filter_by(username=data['username']).first()
-        print(f"Usuário encontrado: {user.username if user else 'Não encontrado'}")
         
         if not user:
             print("Usuário não encontrado")
             return jsonify({'error': 'Usuário ou senha inválidos'}), 401
             
-        print(f"Verificando senha para o usuário: {user.username}")
-        print(f"Hash da senha armazenada: {user.password_hash}")
-        print(f"Senha fornecida: {data['password']}")
-        
         if not user.check_password(data['password']):
             print("Senha inválida")
             return jsonify({'error': 'Usuário ou senha inválidos'}), 401
@@ -107,7 +105,7 @@ def get_current_user():
         user_id = get_jwt_identity()
         print(f"ID do usuário obtido do token: {user_id}")
         
-        user = db.session.get(User, user_id)
+        user = User.query.get(user_id)
         print(f"Usuário encontrado: {user}")
         
         if not user:

@@ -1,25 +1,19 @@
 # -*- coding: utf-8 -*-
 
-from flask import Flask, request
-from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
-from flask_jwt_extended import JWTManager
+from flask import Flask
 from flask_cors import CORS
 from datetime import timedelta
 import os
 from .config import Config
-from .extensions import init_app
-from .routes.auth import auth_bp
-from .routes.visitas import visitas_bp
-from .routes.sessoes import sessoes_bp
-from .routes.ritos import ritos_bp
-from .routes.graus import graus_bp
-from .routes.potencias import potencias_bp
-from .routes.lojas import lojas_bp
-
-db = SQLAlchemy()
-migrate = Migrate()
-jwt = JWTManager()
+from .extensions import db, migrate, jwt, init_app as init_extensions
+from .routes.auth_routes import bp as auth_bp
+from .routes.visita_routes import bp as visitas_bp
+from .routes.sessao_routes import bp as sessoes_bp
+from .routes.rito_routes import bp as ritos_bp
+from .routes.grau_routes import bp as graus_bp
+from .routes.potencia_routes import bp as potencias_bp
+from .routes.loja_routes import bp as lojas_bp
+from .routes.oriente_routes import bp as oriente_bp
 
 def init_db(app):
     """Inicializa o banco de dados e cria o usuário admin se necessário"""
@@ -35,10 +29,12 @@ def init_db(app):
             if not admin:
                 admin = User(
                     username='admin',
+                    name='Administrador',
                     email='admin@example.com',
+                    password='admin123',  # Senha inicial
                     is_admin=True
                 )
-                admin.set_password('admin123')
+                admin.set_password('admin123')  # Hash da senha
                 db.session.add(admin)
                 db.session.commit()
                 print("Usuário admin criado com sucesso!")
@@ -110,16 +106,23 @@ def create_app(config_class=Config):
     # Configurar CORS - Permitir todas as origens durante o desenvolvimento
     CORS(app, resources={
         r"/api/*": {
-            "origins": ["http://localhost:3000", "http://localhost:3001", "http://localhost:3003"],
-            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-            "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"],
-            "expose_headers": ["Content-Type", "Authorization"],
-            "supports_credentials": True
+            "origins": [
+                "http://localhost:3000",
+                "http://localhost:3001",
+                "http://localhost:3002",
+                "http://localhost:3003",
+                "http://localhost:3004",
+                "http://localhost:3005"
+            ],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"],
+            "supports_credentials": True,
+            "expose_headers": ["Content-Type", "Authorization"]
         }
     })
     
     # Inicializar extensões
-    init_app(app)
+    init_extensions(app)
     
     # Registrar blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
@@ -129,21 +132,9 @@ def create_app(config_class=Config):
     app.register_blueprint(graus_bp, url_prefix='/api/graus')
     app.register_blueprint(potencias_bp, url_prefix='/api/potencias')
     app.register_blueprint(lojas_bp, url_prefix='/api/lojas')
+    app.register_blueprint(oriente_bp, url_prefix='/api/orientes')
     
     # Inicializar banco de dados
     init_db(app)
-    
-    # Cria as tabelas se não existirem
-    with app.app_context():
-        db.create_all()
-        
-        # Adiciona a coluna user_id se não existir
-        try:
-            db.engine.execute('ALTER TABLE lojas ADD COLUMN user_id INTEGER REFERENCES users(id)')
-        except Exception as e:
-            print(f"Coluna user_id já existe ou erro ao adicionar: {str(e)}")
-        
-        # Inicializa dados básicos
-        from app.models import User, Potencia, Rito, Grau
     
     return app 

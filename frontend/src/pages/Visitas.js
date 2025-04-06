@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Container, 
   Paper, 
@@ -40,7 +40,6 @@ import useRequest from '../hooks/useRequest';
 
 const Visitas = () => {
   const location = useLocation();
-  const isListMode = location.pathname === '/visitas/lista';
   const [visitas, setVisitas] = useState([]);
   const [lojas, setLojas] = useState([]);
   const [graus, setGraus] = useState([]);
@@ -72,7 +71,6 @@ const Visitas = () => {
     message: '',
     severity: 'success'
   });
-  const [searchTerm, setSearchTerm] = useState('');
   const [filteredVisitas, setFilteredVisitas] = useState([]);
   const [filters, setFilters] = useState({
     data_inicio: null,
@@ -85,67 +83,9 @@ const Visitas = () => {
     prancha_presenca: null,
     possui_certificado: null
   });
-  const { execute, error } = useRequest();
+  const { error } = useRequest();
 
-  const loadData = async () => {
-    try {
-      console.log('Iniciando carregamento de dados...');
-      console.log('Modo de visualização:', isListMode ? 'Lista' : 'Cadastro');
-      
-      const [visitasResponse, lojasResponse, sessoesResponse, grausResponse, ritosResponse, potenciasResponse] = await Promise.all([
-        api.get('/visitas'),
-        api.get('/lojas'),
-        api.get('/sessoes'),
-        api.get('/graus'),
-        api.get('/ritos'),
-        api.get('/potencias')
-      ]);
-
-      console.log('Resposta da API de visitas:', visitasResponse.data);
-      console.log('Número de visitas carregadas:', visitasResponse.data.length);
-      
-      setVisitas(visitasResponse.data);
-      setLojas(lojasResponse.data);
-      setSessoes(sessoesResponse.data);
-      setGraus(grausResponse.data);
-      setRitos(ritosResponse.data);
-      setPotencias(potenciasResponse.data);
-      
-      console.log('Dados carregados com sucesso');
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-      console.error('Detalhes do erro:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, [isListMode]);
-
-  useEffect(() => {
-    const filtered = visitas.filter(visita => {
-      const matchDataInicio = !filters.data_inicio || new Date(visita.data_visita) >= filters.data_inicio;
-      const matchDataFim = !filters.data_fim || new Date(visita.data_visita) <= filters.data_fim;
-      const matchLoja = !filters.loja_id || visita.loja_id === filters.loja_id;
-      const matchSessao = !filters.sessao_id || visita.sessao_id === filters.sessao_id;
-      const matchGrau = !filters.grau_id || visita.grau_id === filters.grau_id;
-      const matchRito = !filters.rito_id || visita.rito_id === filters.rito_id;
-      const matchPotencia = !filters.potencia_id || visita.potencia_id === filters.potencia_id;
-      const matchPrancha = filters.prancha_presenca === null || visita.prancha_presenca === filters.prancha_presenca;
-      const matchCertificado = filters.possui_certificado === null || visita.possui_certificado === filters.possui_certificado;
-
-      return matchDataInicio && matchDataFim && matchLoja && matchSessao && matchGrau && 
-             matchRito && matchPotencia && matchPrancha && matchCertificado;
-    });
-    setFilteredVisitas(filtered);
-    setPage(0);
-  }, [filters, visitas]);
-
-  const handleOpenDialog = (visita = null) => {
+  const handleOpenDialog = useCallback((visita = null) => {
     if (visita) {
       setEditingVisita(visita);
       setFormData({
@@ -180,7 +120,59 @@ const Visitas = () => {
       });
     }
     setOpenDialog(true);
-  };
+  }, []);
+
+  const loadData = useCallback(async () => {
+    try {
+      const [visitasResponse, lojasResponse, sessoesResponse, grausResponse, ritosResponse, potenciasResponse] = await Promise.all([
+        api.get('/visitas'),
+        api.get('/lojas'),
+        api.get('/sessoes'),
+        api.get('/graus'),
+        api.get('/ritos'),
+        api.get('/potencias')
+      ]);
+      
+      setVisitas(visitasResponse.data);
+      setLojas(lojasResponse.data);
+      setSessoes(sessoesResponse.data);
+      setGraus(grausResponse.data);
+      setRitos(ritosResponse.data);
+      setPotencias(potenciasResponse.data);
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  useEffect(() => {
+    const shouldOpenDialog = location.pathname === '/visitas/novo';
+    if (shouldOpenDialog && !openDialog) {
+      handleOpenDialog();
+    }
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const filtered = visitas.filter(visita => {
+      const matchDataInicio = !filters.data_inicio || new Date(visita.data_visita) >= filters.data_inicio;
+      const matchDataFim = !filters.data_fim || new Date(visita.data_visita) <= filters.data_fim;
+      const matchLoja = !filters.loja_id || visita.loja_id === filters.loja_id;
+      const matchSessao = !filters.sessao_id || visita.sessao_id === filters.sessao_id;
+      const matchGrau = !filters.grau_id || visita.grau_id === filters.grau_id;
+      const matchRito = !filters.rito_id || visita.rito_id === filters.rito_id;
+      const matchPotencia = !filters.potencia_id || visita.potencia_id === filters.potencia_id;
+      const matchPrancha = filters.prancha_presenca === null || visita.prancha_presenca === filters.prancha_presenca;
+      const matchCertificado = filters.possui_certificado === null || visita.possui_certificado === filters.possui_certificado;
+
+      return matchDataInicio && matchDataFim && matchLoja && matchSessao && matchGrau && 
+             matchRito && matchPotencia && matchPrancha && matchCertificado;
+    });
+    setFilteredVisitas(filtered);
+    setPage(0);
+  }, [filters, visitas]);
 
   const handleCloseDialog = () => {
     setOpenDialog(false);

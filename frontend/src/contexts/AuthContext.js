@@ -10,10 +10,9 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const token = storage.getItem('@CadastroVisitas:token');
-    const refreshToken = storage.getItem('@CadastroVisitas:refreshToken');
     const storedUser = storage.getItem('@CadastroVisitas:user');
     
-    if (token && refreshToken && storedUser) {
+    if (token && storedUser) {
       try {
         const userData = JSON.parse(storedUser);
         setUser(userData);
@@ -21,34 +20,29 @@ export const AuthProvider = ({ children }) => {
       } catch (error) {
         console.error('Erro ao parsear dados do usuário:', error);
         storage.removeItem('@CadastroVisitas:token');
-        storage.removeItem('@CadastroVisitas:refreshToken');
         storage.removeItem('@CadastroVisitas:user');
         delete api.defaults.headers.common['Authorization'];
       }
     }
     setLoading(false);
-  }, []);
+  }, [storage]);
 
   const login = async (username, password) => {
     try {
+      console.log('Tentando fazer login com:', { username });
       const response = await api.post('/auth/login', { username, password });
+      console.log('Resposta do login:', response.data);
       
-      if (!response.data.access_token || !response.data.refresh_token) {
-        throw new Error('Tokens não encontrados na resposta');
+      const { access_token, user } = response.data;
+      if (!access_token || !user) {
+        throw new Error('Dados de autenticação inválidos');
       }
-      
-      const { access_token, refresh_token, user } = response.data;
-      
-      if (!user || !user.id) {
-        throw new Error('Dados do usuário inválidos na resposta');
-      }
-      
+
       storage.setItem('@CadastroVisitas:token', access_token);
-      storage.setItem('@CadastroVisitas:refreshToken', refresh_token);
       storage.setItem('@CadastroVisitas:user', JSON.stringify(user));
-      
-      api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
       setUser(user);
+      api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+      return true;
     } catch (error) {
       console.error('Erro no login:', error);
       throw error;
@@ -57,7 +51,6 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     storage.removeItem('@CadastroVisitas:token');
-    storage.removeItem('@CadastroVisitas:refreshToken');
     storage.removeItem('@CadastroVisitas:user');
     delete api.defaults.headers.common['Authorization'];
     setUser(null);

@@ -1,8 +1,7 @@
 import axios from 'axios';
-import { useAuth } from '../contexts/AuthContext';
 
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: 'http://localhost:5001/api',
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
@@ -15,7 +14,7 @@ const storage = process.env.REACT_APP_TOKEN_STORAGE === 'localStorage' ? localSt
 
 // Interceptor para adicionar o token JWT em todas as requisições
 api.interceptors.request.use(async config => {
-  const token = localStorage.getItem('@CadastroVisitas:token');
+  const token = storage.getItem('@CadastroVisitas:token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
     console.log('Token sendo enviado:', token);
@@ -62,7 +61,7 @@ api.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        const refreshToken = localStorage.getItem('@CadastroVisitas:refreshToken');
+        const refreshToken = storage.getItem('@CadastroVisitas:refreshToken');
         if (!refreshToken) {
           throw new Error('Refresh token não encontrado');
         }
@@ -77,7 +76,7 @@ api.interceptors.response.use(
         const { access_token } = response.data;
 
         // Atualiza o token no localStorage
-        localStorage.setItem('@CadastroVisitas:token', access_token);
+        storage.setItem('@CadastroVisitas:token', access_token);
 
         // Atualiza o header da requisição original
         originalRequest.headers['Authorization'] = `Bearer ${access_token}`;
@@ -86,9 +85,9 @@ api.interceptors.response.use(
         return api(originalRequest);
       } catch (refreshError) {
         // Se falhar o refresh, faz logout
-        localStorage.removeItem('@CadastroVisitas:token');
-        localStorage.removeItem('@CadastroVisitas:refreshToken');
-        localStorage.removeItem('@CadastroVisitas:user');
+        storage.removeItem('@CadastroVisitas:token');
+        storage.removeItem('@CadastroVisitas:refreshToken');
+        storage.removeItem('@CadastroVisitas:user');
         window.location.href = '/login';
         return Promise.reject(refreshError);
       }

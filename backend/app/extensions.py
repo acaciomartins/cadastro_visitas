@@ -6,21 +6,19 @@ from flask_cors import CORS
 db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
-cors = CORS()
 
 def init_app(app):
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
-    cors.init_app(app)
-
-    # Configuração do CORS
-    cors.init_app(app, resources={
+    
+    # Configuração do CORS - Permitir todas as origens durante o desenvolvimento
+    CORS(app, resources={
         r"/api/*": {
-            "origins": app.config['CORS_ORIGINS'],
-            "methods": app.config['CORS_METHODS'],
-            "allow_headers": app.config['CORS_ALLOW_HEADERS'],
-            "expose_headers": app.config['CORS_EXPOSE_HEADERS'],
-            "supports_credentials": app.config['CORS_SUPPORTS_CREDENTIALS']
+            "origins": ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003"],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+            "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"],
+            "expose_headers": ["Content-Type", "Authorization"],
+            "supports_credentials": True
         }
     }) 

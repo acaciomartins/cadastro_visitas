@@ -84,6 +84,16 @@ const AppRoutes = () => {
               }
             />
             <Route
+              path="/visitas/novo"
+              element={
+                <PrivateRoute>
+                  <Layout>
+                    <Visitas />
+                  </Layout>
+                </PrivateRoute>
+              }
+            />
+            <Route
               path="/sessoes"
               element={
                 <PrivateRoute>
