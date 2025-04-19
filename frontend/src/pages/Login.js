@@ -30,14 +30,12 @@ const Login = () => {
       await login(username, password);
       console.log('Login bem-sucedido, redirecionando...');
       navigate('/');
-    } catch (err) {
-      console.error('Erro ao fazer login:', err);
-      if (err.response?.data?.error) {
-        setError(err.response.data.error);
-      } else if (err.message) {
-        setError(err.message);
+    } catch (error) {
+      console.error('Erro ao fazer login:', error);
+      if (error.message === 'Network Error') {
+        setError('Não foi possível conectar ao servidor. Por favor, verifique sua conexão e tente novamente.');
       } else {
-        setError('Erro ao fazer login. Por favor, tente novamente.');
+        setError('Erro ao fazer login. Por favor, verifique suas credenciais.');
       }
     } finally {
       setLoading(false);

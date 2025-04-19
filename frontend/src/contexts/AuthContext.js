@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import api from '../services/api';
 
 const AuthContext = createContext({});
@@ -8,55 +8,15 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const storage = process.env.REACT_APP_TOKEN_STORAGE === 'localStorage' ? localStorage : sessionStorage;
 
-  useEffect(() => {
-    const token = storage.getItem('@CadastroVisitas:token');
-    const storedUser = storage.getItem('@CadastroVisitas:user');
-    
-    if (token && storedUser) {
-      try {
-        const userData = JSON.parse(storedUser);
-        setUser(userData);
-        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      } catch (error) {
-        console.error('Erro ao parsear dados do usuário:', error);
-        storage.removeItem('@CadastroVisitas:token');
-        storage.removeItem('@CadastroVisitas:user');
-        delete api.defaults.headers.common['Authorization'];
-      }
-    }
-    setLoading(false);
-  }, [storage]);
-
-  const login = async (username, password) => {
-    try {
-      console.log('Tentando fazer login com:', { username });
-      const response = await api.post('/auth/login', { username, password });
-      console.log('Resposta do login:', response.data);
-      
-      const { access_token, user } = response.data;
-      if (!access_token || !user) {
-        throw new Error('Dados de autenticação inválidos');
-      }
-
-      storage.setItem('@CadastroVisitas:token', access_token);
-      storage.setItem('@CadastroVisitas:user', JSON.stringify(user));
-      setUser(user);
-      api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
-      return true;
-    } catch (error) {
-      console.error('Erro no login:', error);
-      throw error;
-    }
-  };
-
-  const logout = () => {
+  const logout = useCallback(() => {
     storage.removeItem('@CadastroVisitas:token');
+    storage.removeItem('@CadastroVisitas:refreshToken');
     storage.removeItem('@CadastroVisitas:user');
     delete api.defaults.headers.common['Authorization'];
     setUser(null);
-  };
+  }, [storage]);
 
-  const refreshToken = async () => {
+  const refreshToken = useCallback(async () => {
     try {
       const refreshToken = storage.getItem('@CadastroVisitas:refreshToken');
       if (!refreshToken) {
@@ -85,6 +45,69 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Erro ao atualizar token:', error);
       logout();
+      throw error;
+    }
+  }, [storage, logout]);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = storage.getItem('@CadastroVisitas:token');
+      const storedUser = storage.getItem('@CadastroVisitas:user');
+      
+      if (token && storedUser) {
+        try {
+          const userData = JSON.parse(storedUser);
+          setUser(userData);
+          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          
+          // Verificar se o token é válido
+          try {
+            await api.get('/auth/verify');
+          } catch (verifyError) {
+            console.error('Token inválido:', verifyError);
+            // Tentar refresh antes de fazer logout
+            try {
+              await refreshToken();
+            } catch (refreshError) {
+              console.error('Falha no refresh do token:', refreshError);
+              logout();
+            }
+          }
+        } catch (error) {
+          console.error('Erro ao parsear dados do usuário:', error);
+          logout();
+        }
+      } else {
+        delete api.defaults.headers.common['Authorization'];
+      }
+      setLoading(false);
+    };
+
+    checkAuth();
+  }, [storage, logout, refreshToken]);
+
+  const login = async (username, password) => {
+    try {
+      const response = await api.post('/auth/login', { username, password });
+      const { access_token, refresh_token, user } = response.data;
+      
+      if (!access_token || !user) {
+        throw new Error('Dados de autenticação inválidos');
+      }
+
+      // Salvar tokens e dados do usuário
+      storage.setItem('@CadastroVisitas:token', access_token);
+      if (refresh_token) {
+        storage.setItem('@CadastroVisitas:refreshToken', refresh_token);
+      }
+      storage.setItem('@CadastroVisitas:user', JSON.stringify(user));
+      
+      // Configurar cabeçalho de autenticação
+      api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
+      setUser(user);
+      return true;
+    } catch (error) {
+      console.error('Erro no login:', error);
       throw error;
     }
   };

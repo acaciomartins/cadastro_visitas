@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Container, 
   Paper, 
@@ -49,7 +49,6 @@ const Potencias = () => {
   });
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [potenciaToDelete, setPotenciaToDelete] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
   const [filteredPotencias, setFilteredPotencias] = useState([]);
   const [filters, setFilters] = useState({
     nome: '',
@@ -57,9 +56,64 @@ const Potencias = () => {
   });
   const { execute } = useRequest();
 
+  const loadPotencias = useCallback(async (retryCount = 0) => {
+    try {
+      const response = await execute(() => api.get('/potencias'));
+      setPotencias(response.data);
+      setError(null);
+    } catch (err) {
+      console.error('Erro ao carregar potências:', err);
+      
+      // Tenta novamente em caso de erro de rede (máximo de 3 tentativas)
+      if ((err.isNetworkError || err.response?.status === 0) && retryCount < 3) {
+        console.log(`Tentativa ${retryCount + 1} de 3 para carregar potências...`);
+        setTimeout(() => {
+          loadPotencias(retryCount + 1);
+        }, 1000 * (retryCount + 1)); // Aumenta o tempo entre tentativas
+        return;
+      }
+      
+      let errorMessage = 'Erro ao carregar potências. ';
+      if (err.isNetworkError || err.response?.status === 0) {
+        errorMessage += 'Não foi possível conectar ao servidor. Verifique sua conexão com a internet.';
+      } else if (err.response?.status === 401) {
+        errorMessage += 'Sua sessão expirou. Por favor, faça login novamente.';
+      } else if (err.response?.data?.error) {
+        errorMessage += err.response.data.error;
+      } else {
+        errorMessage += 'Por favor, tente novamente mais tarde.';
+      }
+      
+      setError(errorMessage);
+      setSnackbar({
+        open: true,
+        message: errorMessage,
+        severity: 'error'
+      });
+      
+      if (err.response?.status === 401 && !window.location.pathname.includes('/login')) {
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+      }
+    }
+  }, [execute]);
+
+  // Adiciona um efeito para recarregar os dados quando houver erro de rede
+  useEffect(() => {
+    const handleOnline = () => {
+      if (error?.includes('conexão')) {
+        loadPotencias();
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [error, loadPotencias]);
+
   useEffect(() => {
     loadPotencias();
-  }, []);
+  }, [loadPotencias]);
 
   useEffect(() => {
     const filtered = potencias.filter(potencia => {
@@ -70,21 +124,6 @@ const Potencias = () => {
     setFilteredPotencias(filtered);
     setPage(0);
   }, [filters, potencias]);
-
-  const loadPotencias = async () => {
-    try {
-      const response = await execute(() => api.get('/potencias'));
-      setPotencias(response.data);
-    } catch (err) {
-      console.error('Erro ao carregar potências:', err);
-      setError('Erro ao carregar potências');
-      setSnackbar({
-        open: true,
-        message: 'Erro ao carregar potências. Verifique a conexão com a internet e tente novamente mais tarde.',
-        severity: 'error'
-      });
-    }
-  };
 
   const validateForm = () => {
     const errors = {};

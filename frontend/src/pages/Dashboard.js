@@ -29,9 +29,54 @@ const Dashboard = () => {
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const { execute } = useRequest();
 
+  const formatDateForDisplay = (dateString) => {
+    console.log('Data recebida:', dateString); // Debug
+    if (!dateString) return '-';
+    try {
+      // Tentar diferentes formatos
+      let date;
+      
+      // Se a data vier com timezone (formato ISO)
+      if (dateString.includes('T')) {
+        date = new Date(dateString);
+      } 
+      // Se vier no formato YYYY-MM-DD
+      else if (dateString.includes('-')) {
+        const [year, month, day] = dateString.split('-');
+        date = new Date(year, month - 1, day);
+      }
+      // Se vier no formato DD/MM/YYYY
+      else if (dateString.includes('/')) {
+        const [day, month, year] = dateString.split('/');
+        date = new Date(year, month - 1, day);
+      }
+      // Outros formatos
+      else {
+        date = new Date(dateString);
+      }
+
+      // Verificar se a data é válida
+      if (isNaN(date.getTime())) {
+        console.error('Data inválida:', dateString);
+        return '-';
+      }
+
+      // Formatar no padrão brasileiro
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+
+      return `${day}/${month}/${year}`;
+    } catch (error) {
+      console.error('Erro ao formatar data:', error, 'Data recebida:', dateString);
+      return '-';
+    }
+  };
+
   const loadVisitas = useCallback(async () => {
     try {
       const response = await execute(() => api.get('/visitas'));
+      console.log('Dados recebidos:', response.data); // Debug
       setVisitas(response.data);
     } catch (error) {
       setError('Erro ao carregar visitas');
@@ -67,7 +112,7 @@ const Dashboard = () => {
     <Container maxWidth="lg">
       <Box sx={{ my: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
-          Dashboard
+          Dashboard!
         </Typography>
 
         {error && (
@@ -108,15 +153,15 @@ const Dashboard = () => {
                       .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                       .map((visita) => (
                         <TableRow key={visita.id}>
-                          <TableCell>{visita.loja?.nome}</TableCell>
-                          <TableCell>{new Date(visita.data).toLocaleDateString()}</TableCell>
-                          <TableCell>{visita.rito?.nome}</TableCell>
-                          <TableCell>{visita.grau?.nome}</TableCell>
-                          <TableCell>{visita.potencia?.nome}</TableCell>
+                          <TableCell>{visita.loja?.nome || '-'}</TableCell>
+                          <TableCell>{formatDateForDisplay(visita.data_visita)}</TableCell>
+                          <TableCell>{visita.rito?.nome || '-'}</TableCell>
+                          <TableCell>{visita.grau?.descricao || '-'}</TableCell>
+                          <TableCell>{visita.potencia?.nome || '-'}</TableCell>
                           <TableCell>
                             <IconButton
                               color="primary"
-                              onClick={() => navigate(`/visitas/${visita.id}`)}
+                              onClick={() => navigate(`/visitas/editar/${visita.id}`)}
                             >
                               <EditIcon />
                             </IconButton>

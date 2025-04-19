@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthProvider } from './contexts/AuthContext';
 import { LoadingProvider } from './contexts/LoadingContext';
 import PrivateRoute from './components/PrivateRoute';
 import Layout from './components/Layout';
@@ -85,6 +85,16 @@ const AppRoutes = () => {
             />
             <Route
               path="/visitas/novo"
+              element={
+                <PrivateRoute>
+                  <Layout>
+                    <Visitas />
+                  </Layout>
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/visitas/editar/:id"
               element={
                 <PrivateRoute>
                   <Layout>

@@ -35,11 +35,13 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { ptBR } from 'date-fns/locale';
 import api from '../services/api';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import useRequest from '../hooks/useRequest';
 
 const Visitas = () => {
   const location = useLocation();
+  const { id } = useParams();
+  const navigate = useNavigate();
   const [visitas, setVisitas] = useState([]);
   const [lojas, setLojas] = useState([]);
   const [graus, setGraus] = useState([]);
@@ -146,14 +148,31 @@ const Visitas = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   useEffect(() => {
-    const shouldOpenDialog = location.pathname === '/visitas/novo';
+    const loadVisita = async () => {
+      if (id) {
+        try {
+          const response = await api.get(`/visitas/${id}`);
+          const visita = response.data;
+          handleOpenDialog(visita);
+        } catch (error) {
+          console.error('Erro ao carregar visita:', error);
+          navigate('/visitas');
+        }
+      }
+    };
+
+    const shouldOpenDialog = location.pathname === '/visitas/novo' || id;
     if (shouldOpenDialog && !openDialog) {
-      handleOpenDialog();
+      if (id) {
+        loadVisita();
+      } else {
+        handleOpenDialog();
+      }
     }
-  }, [location.pathname]);
+  }, [location.pathname, id, openDialog, handleOpenDialog, navigate]);
 
   useEffect(() => {
     const filtered = visitas.filter(visita => {
@@ -191,6 +210,7 @@ const Visitas = () => {
       certificado_scaniado: false,
       observacoes: ''
     });
+    navigate('/visitas');
   };
 
   const handleDelete = async (id) => {
